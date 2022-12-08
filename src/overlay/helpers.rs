@@ -2,6 +2,7 @@ use crate::error::AppError;
 use image::DynamicImage;
 use image::{GenericImage, GenericImageView};
 use rusttype::{Font, PositionedGlyph, Scale};
+use unicode_segmentation::UnicodeSegmentation;
 
 const FONTS_DIR: &'static str = "fonts";
 
@@ -32,6 +33,15 @@ pub fn load_font(font_file_name: &str) -> Result<Font<'static>, AppError> {
         Some(font) => Ok(font),
         None => Err(AppError::FontNotFound),
     }
+}
+
+pub fn less_than_five_chars(text_list: Vec<String>) -> bool {
+    for text in text_list {
+        if text.graphemes(true).count() < 5 {
+            return true;
+        }
+    }
+    false
 }
 
 pub fn draw_glyphs(

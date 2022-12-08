@@ -1,12 +1,13 @@
 use std::io::Cursor;
 
 use crate::overlay::helpers::load_font;
-use crate::overlay::image::Image;
-use crate::overlay::text::{OverlayText, PositionType};
+use crate::overlay::image::{Image, OverlayText, PositionType};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
+
+use super::helpers::less_than_five_chars;
 
 #[derive(Deserialize, Serialize)]
 pub struct BookCoverParams {
@@ -31,6 +32,12 @@ pub async fn book_cover(Json(payload): Json<BookCoverParams>) -> Result<Vec<u8>,
     let author_font = load_font(payload.author_font.as_str())?;
     let title_font = load_font(payload.title_font.as_str())?;
 
+    let title_position = if less_than_five_chars(rev_title_splits.clone()) {
+        PositionType::BottomSides
+    } else {
+        PositionType::BottomStretch
+    };
+
     let author = OverlayText {
         text_list: vec![payload.author],
         color: (255, 255, 255),
@@ -46,7 +53,7 @@ pub async fn book_cover(Json(payload): Json<BookCoverParams>) -> Result<Vec<u8>,
         offset: (0, 0),
         alpha: 1.0,
         font: title_font.clone(),
-        position: PositionType::BottomStretch,
+        position: title_position.clone(),
     };
 
     let title_shadow = OverlayText {
@@ -55,7 +62,7 @@ pub async fn book_cover(Json(payload): Json<BookCoverParams>) -> Result<Vec<u8>,
         offset: (3, 3),
         alpha: 0.5,
         font: title_font,
-        position: PositionType::BottomStretch,
+        position: title_position,
     };
 
     image
