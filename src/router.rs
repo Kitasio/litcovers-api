@@ -4,12 +4,12 @@ use axum::{
     Router,
 };
 
-use crate::{overlay::overlay, settings::get_config};
+use crate::{overlay::handlers::book_cover, settings::get_config};
 
 pub fn app() -> Router {
     Router::new()
         .route("/health_check", get(health_check))
-        .route("/overlay", post(overlay))
+        .route("/overlay", post(book_cover))
         .with_state(get_config().clone())
 }
 
