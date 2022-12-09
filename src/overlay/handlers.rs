@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::AppError;
 
 use super::helpers::less_than_five_chars;
+use super::image::BlendMode;
 
 #[derive(Deserialize, Serialize)]
 pub struct BookCoverParams {
@@ -45,30 +46,20 @@ pub async fn book_cover(Json(payload): Json<BookCoverParams>) -> Result<Vec<u8>,
         alpha: 1.0,
         font: author_font,
         position: PositionType::TopCenter,
+        blend: BlendMode::None,
     };
 
     let title = OverlayText {
         text_list: rev_title_splits.clone(),
         color: (255, 255, 255),
         offset: (0, 0),
-        alpha: 1.0,
+        alpha: 2.0,
         font: title_font.clone(),
         position: title_position.clone(),
+        blend: BlendMode::Overlay,
     };
 
-    let title_shadow = OverlayText {
-        text_list: rev_title_splits,
-        color: (0, 0, 0),
-        offset: (3, 3),
-        alpha: 0.5,
-        font: title_font,
-        position: title_position,
-    };
-
-    image
-        .put_text(author)
-        .put_text(title_shadow)
-        .put_text(title);
+    image.put_text(author).put_text(title);
 
     let mut buf = Vec::new();
     image

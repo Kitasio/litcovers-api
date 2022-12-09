@@ -1,7 +1,5 @@
 use crate::error::AppError;
-use image::DynamicImage;
-use image::{GenericImage, GenericImageView};
-use rusttype::{Font, PositionedGlyph, Scale};
+use rusttype::{Font, Scale};
 use unicode_segmentation::UnicodeSegmentation;
 
 const FONTS_DIR: &'static str = "fonts";
@@ -42,33 +40,4 @@ pub fn less_than_five_chars(text_list: Vec<String>) -> bool {
         }
     }
     false
-}
-
-pub fn draw_glyphs(
-    glyphs: Vec<PositionedGlyph>,
-    alpha: f32,
-    color: (u8, u8, u8),
-    offset: (i32, i32),
-    mut image: DynamicImage,
-) -> DynamicImage {
-    let (img_width, img_height) = image.dimensions();
-    for g in glyphs {
-        if let Some(bb) = g.pixel_bounding_box() {
-            g.draw(|x, y, v| {
-                let x = x as i32 + bb.min.x + offset.0;
-                let y = y as i32 + bb.min.y + offset.1;
-                if x >= 0 && x < img_width as i32 && y >= 0 && y < img_height as i32 {
-                    let c = image.get_pixel(x as u32, y as u32);
-                    let c = image::Rgba([
-                        (c[0] as f32 * (1.0 - alpha * v) + color.0 as f32 * alpha * v) as u8,
-                        (c[1] as f32 * (1.0 - alpha * v) + color.1 as f32 * alpha * v) as u8,
-                        (c[2] as f32 * (1.0 - alpha * v) + color.2 as f32 * alpha * v) as u8,
-                        255,
-                    ]);
-                    image.put_pixel(x as u32, y as u32, c);
-                }
-            });
-        }
-    }
-    image
 }

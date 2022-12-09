@@ -1,8 +1,7 @@
-use image::DynamicImage;
-
 use crate::error::AppError;
-use crate::overlay::helpers::{calc_font_size, calc_text_width, draw_glyphs};
-use image::GenericImageView;
+use crate::overlay::helpers::{calc_font_size, calc_text_width};
+use image::DynamicImage;
+use image::{GenericImage, GenericImageView};
 use rusttype::{point, Font, PositionedGlyph, Scale};
 
 pub struct OverlayText {
@@ -12,6 +11,7 @@ pub struct OverlayText {
     pub alpha: f32,
     pub font: Font<'static>,
     pub position: PositionType,
+    pub blend: BlendMode,
 }
 
 #[derive(Clone)]
@@ -19,6 +19,12 @@ pub enum PositionType {
     TopCenter,
     BottomStretch,
     BottomSides,
+}
+
+#[derive(Clone, Copy)]
+pub enum BlendMode {
+    None,
+    Overlay,
 }
 
 pub struct Image(pub DynamicImage);
@@ -51,6 +57,7 @@ impl Image {
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
+                        overlay.blend,
                         self.0.clone(),
                     );
 
@@ -80,6 +87,7 @@ impl Image {
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
+                        overlay.blend,
                         self.0.clone(),
                     );
 
@@ -117,6 +125,7 @@ impl Image {
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
+                        overlay.blend,
                         self.0.clone(),
                     );
 
@@ -139,4 +148,73 @@ impl Image {
         let image = image::load_from_memory(&bytes)?;
         Ok(Image(image))
     }
+
+    pub fn blend_mode(
+        mode: BlendMode,
+        pixel_rgb: (u8, u8, u8),
+        color_rgb: (u8, u8, u8),
+        alpha: f32,
+        v: f32,
+    ) -> [u8; 4] {
+        match mode {
+            BlendMode::None => [
+                (pixel_rgb.0 as f32 * (1.0 - alpha * v) + color_rgb.0 as f32 * alpha * v) as u8,
+                (pixel_rgb.1 as f32 * (1.0 - alpha * v) + color_rgb.1 as f32 * alpha * v) as u8,
+                (pixel_rgb.2 as f32 * (1.0 - alpha * v) + color_rgb.2 as f32 * alpha * v) as u8,
+                255,
+            ],
+            BlendMode::Overlay => {
+                let r = if (pixel_rgb.0 as f32) < 128.0 {
+                    2.0 * pixel_rgb.0 as f32 * color_rgb.0 as f32 / 255.0
+                } else {
+                    255.0
+                        - 2.0 * (255.0 - pixel_rgb.0 as f32) * (255.0 - color_rgb.0 as f32) / 255.0
+                };
+                let g = if (pixel_rgb.1 as f32) < 128.0 {
+                    2.0 * pixel_rgb.1 as f32 * color_rgb.1 as f32 / 255.0
+                } else {
+                    255.0
+                        - 2.0 * (255.0 - pixel_rgb.1 as f32) * (255.0 - color_rgb.1 as f32) / 255.0
+                };
+                let b = if (pixel_rgb.2 as f32) < 128.0 {
+                    2.0 * pixel_rgb.2 as f32 * color_rgb.2 as f32 / 255.0
+                } else {
+                    255.0
+                        - 2.0 * (255.0 - pixel_rgb.2 as f32) * (255.0 - color_rgb.2 as f32) / 255.0
+                };
+                [
+                    (pixel_rgb.0 as f32 * (1.0 - alpha * v) + r as f32 * alpha * v) as u8,
+                    (pixel_rgb.1 as f32 * (1.0 - alpha * v) + g as f32 * alpha * v) as u8,
+                    (pixel_rgb.2 as f32 * (1.0 - alpha * v) + b as f32 * alpha * v) as u8,
+                    255,
+                ]
+            }
+        }
+    }
+}
+
+pub fn draw_glyphs(
+    glyphs: Vec<PositionedGlyph>,
+    alpha: f32,
+    color: (u8, u8, u8),
+    offset: (i32, i32),
+    mode: BlendMode,
+    mut image: DynamicImage,
+) -> DynamicImage {
+    let (img_width, img_height) = image.dimensions();
+    for g in glyphs {
+        if let Some(bb) = g.pixel_bounding_box() {
+            g.draw(|x, y, v| {
+                let x = x as i32 + bb.min.x + offset.0;
+                let y = y as i32 + bb.min.y + offset.1;
+                if x >= 0 && x < img_width as i32 && y >= 0 && y < img_height as i32 {
+                    let c = image.get_pixel(x as u32, y as u32);
+                    let rgba = Image::blend_mode(mode, (c[0], c[1], c[2]), color, alpha, v);
+                    let c = image::Rgba(rgba);
+                    image.put_pixel(x as u32, y as u32, c);
+                }
+            });
+        }
+    }
+    image
 }
