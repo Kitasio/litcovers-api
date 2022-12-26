@@ -33,9 +33,9 @@ pub fn load_font(font_file_name: &str) -> Result<Font<'static>, AppError> {
     }
 }
 
-pub fn less_than_five_chars(text_list: Vec<String>) -> bool {
+pub fn less_than(num: usize, text_list: Vec<String>) -> bool {
     for text in text_list {
-        if text.graphemes(true).count() < 5 {
+        if text.graphemes(true).count() < num {
             return true;
         }
     }

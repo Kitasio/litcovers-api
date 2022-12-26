@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 
-use super::helpers::less_than_five_chars;
+use super::helpers::less_than;
 use super::image::BlendMode;
 
 #[derive(Deserialize, Serialize)]
@@ -33,7 +33,7 @@ pub async fn book_cover(Json(payload): Json<BookCoverParams>) -> Result<Vec<u8>,
     let author_font = load_font(payload.author_font.as_str())?;
     let title_font = load_font(payload.title_font.as_str())?;
 
-    let title_position = if less_than_five_chars(rev_title_splits.clone()) {
+    let title_position = if less_than(6, rev_title_splits.clone()) {
         PositionType::BottomSides
     } else {
         PositionType::BottomStretch
@@ -53,7 +53,7 @@ pub async fn book_cover(Json(payload): Json<BookCoverParams>) -> Result<Vec<u8>,
         text_list: rev_title_splits.clone(),
         color: (255, 255, 255),
         offset: (0, 0),
-        alpha: 2.0,
+        alpha: 1.0,
         font: title_font.clone(),
         position: title_position.clone(),
         blend: BlendMode::Overlay,
