@@ -7,15 +7,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AppError;
 
-use super::helpers::less_than;
 use super::image::BlendMode;
 
 #[derive(Deserialize, Serialize)]
 pub struct BookCoverParams {
     pub author_font: String,
+    pub author: String,
+    pub author_position: PositionType,
     pub title_font: String,
     pub title: String,
-    pub author: String,
+    pub title_position: PositionType,
+    pub blend_mode: BlendMode,
+    pub alfa: f32,
     pub image_url: String,
     pub line_length: u8,
 }
@@ -33,30 +36,24 @@ pub async fn book_cover(Json(payload): Json<BookCoverParams>) -> Result<Vec<u8>,
     let author_font = load_font(payload.author_font.as_str())?;
     let title_font = load_font(payload.title_font.as_str())?;
 
-    let title_position = if less_than(6, rev_title_splits.clone()) {
-        PositionType::BottomSides
-    } else {
-        PositionType::BottomStretch
-    };
-
     let author = OverlayText {
         text_list: vec![payload.author],
         color: (255, 255, 255),
         offset: (0, 0),
-        alpha: 1.0,
+        alpha: payload.alfa,
         font: author_font,
-        position: PositionType::TopCenter,
-        blend: BlendMode::None,
+        position: payload.author_position,
+        blend: payload.blend_mode,
     };
 
     let title = OverlayText {
         text_list: rev_title_splits.clone(),
         color: (255, 255, 255),
         offset: (0, 0),
-        alpha: 1.0,
+        alpha: payload.alfa,
         font: title_font.clone(),
-        position: title_position.clone(),
-        blend: BlendMode::Overlay,
+        position: payload.title_position,
+        blend: payload.blend_mode,
     };
 
     image.put_text(author).put_text(title);

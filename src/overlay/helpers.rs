@@ -41,3 +41,13 @@ pub fn less_than(num: usize, text_list: Vec<String>) -> bool {
     }
     false
 }
+
+pub fn longest_str(str_list: &Vec<String>) -> String {
+    let mut largest = String::new();
+    for s in str_list {
+        if s.graphemes(true).count() > largest.graphemes(true).count() {
+            largest = s.to_string();
+        }
+    }
+    largest
+}

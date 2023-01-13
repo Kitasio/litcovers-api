@@ -3,6 +3,9 @@ use crate::overlay::helpers::{calc_font_size, calc_text_width};
 use image::DynamicImage;
 use image::{GenericImage, GenericImageView};
 use rusttype::{point, Font, PositionedGlyph, Scale};
+use serde::{Deserialize, Serialize};
+
+use super::helpers::longest_str;
 
 pub struct OverlayText {
     pub text_list: Vec<String>,
@@ -14,14 +17,16 @@ pub struct OverlayText {
     pub blend: BlendMode,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum PositionType {
     TopCenter,
     BottomStretch,
     BottomSides,
+    BottomLeft,
+    BottomCenter,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 pub enum BlendMode {
     None,
     Overlay,
@@ -135,6 +140,71 @@ impl Image {
                     padding_t += 35;
                     // update left side
                     left_side = !left_side;
+                }
+                self
+            }
+            PositionType::BottomLeft => {
+                let longest_line = longest_str(&overlay.text_list);
+                let scale = calc_font_size(img_width - padding_l, &longest_line, &overlay.font);
+                for text in overlay.text_list {
+                    let text = text.to_uppercase();
+                    let v_metrics = overlay.font.v_metrics(scale);
+
+                    let offset = {
+                        let left = padding_l as f32 / 2.0;
+                        let top = img_height as f32 - stacked_height - padding_t as f32 / 2.0;
+                        point(left, top)
+                    };
+
+                    let glyphs: Vec<PositionedGlyph> =
+                        overlay.font.layout(&text, scale, offset).collect();
+
+                    self.0 = draw_glyphs(
+                        glyphs,
+                        overlay.alpha,
+                        overlay.color,
+                        overlay.offset,
+                        overlay.blend,
+                        self.0.clone(),
+                    );
+
+                    // update stacked height
+                    stacked_height += v_metrics.ascent;
+                    // update padding y
+                    padding_t += 35;
+                }
+                self
+            }
+            PositionType::BottomCenter => {
+                let longest_line = longest_str(&overlay.text_list);
+                let scale = calc_font_size(img_width - padding_l, &longest_line, &overlay.font);
+                for text in overlay.text_list {
+                    let text = text.to_uppercase();
+                    let v_metrics = overlay.font.v_metrics(scale);
+
+                    let offset = {
+                        let left = (img_width as f32 / 2.0)
+                            - calc_text_width(text.as_str(), &overlay.font, scale) as f32 / 2.0;
+                        let top = img_height as f32 - stacked_height - padding_t as f32 / 2.0;
+                        point(left, top)
+                    };
+
+                    let glyphs: Vec<PositionedGlyph> =
+                        overlay.font.layout(&text, scale, offset).collect();
+
+                    self.0 = draw_glyphs(
+                        glyphs,
+                        overlay.alpha,
+                        overlay.color,
+                        overlay.offset,
+                        overlay.blend,
+                        self.0.clone(),
+                    );
+
+                    // update stacked height
+                    stacked_height += v_metrics.ascent;
+                    // update padding y
+                    padding_t += 35;
                 }
                 self
             }
