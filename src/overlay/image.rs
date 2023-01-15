@@ -230,14 +230,12 @@ impl Image {
             }
         }
         if img_bytes.len() > 0 {
-            println!("loading from state");
             let image = image::load_from_memory(&img_bytes)?;
             Ok(Image {
                 dyn_img: image,
                 url: url.to_string(),
             })
         } else {
-            println!("loading from endpoint");
             let response = reqwest::get(url).await?;
             let bytes = response.bytes().await?;
             {

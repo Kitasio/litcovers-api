@@ -33,10 +33,7 @@ pub async fn book_cover(
     Json(payload): Json<BookCoverParams>,
 ) -> Result<Vec<u8>, AppError> {
     let url = payload.image_url;
-    let start = Instant::now();
     let mut image = Image::from_url(url.as_str(), state).await?;
-    let duration = start.elapsed();
-    println!("image fetching: {:?}", duration);
 
     let title_splits = textwrap::wrap(payload.title.as_str(), payload.line_length as usize);
 
@@ -69,17 +66,11 @@ pub async fn book_cover(
         blend: payload.blend_mode,
     };
 
-    let start = Instant::now();
     image.put_text(author).put_text(title);
-    let duration = start.elapsed();
-    println!("overlaying text: {:?}", duration);
 
-    let start = Instant::now();
     let mut buf: Vec<u8> = Vec::new();
     image
         .dyn_img
         .write_to(&mut Cursor::new(&mut buf), image::ImageOutputFormat::Png)?;
-    let duration = start.elapsed();
-    println!("writing to buffer: {:?}", duration);
     Ok(buf)
 }
