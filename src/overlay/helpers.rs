@@ -1,4 +1,6 @@
-use crate::error::AppError;
+use std::{sync::Arc, time::Duration};
+
+use crate::{error::AppError, router::AppState};
 use rusttype::{Font, Scale};
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -50,4 +52,15 @@ pub fn longest_str(str_list: &Vec<String>) -> String {
         }
     }
     largest
+}
+
+pub async fn kill_after(secs: Duration, state: Arc<AppState>, url: String) {
+    tokio::spawn(async move {
+        tokio::time::sleep(secs).await;
+        let mut img_map = state.images.lock().unwrap();
+        match img_map.remove_entry(&url) {
+            Some((url, _bytes)) => println!("Removing: {}", url),
+            None => println!("Nothing to remove"),
+        }
+    });
 }

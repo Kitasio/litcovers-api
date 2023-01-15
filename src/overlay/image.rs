@@ -1,5 +1,9 @@
+use std::sync::Arc;
+use std::time::Duration;
+
 use crate::error::AppError;
-use crate::overlay::helpers::{calc_font_size, calc_text_width};
+use crate::overlay::helpers::{calc_font_size, calc_text_width, kill_after};
+use crate::router::AppState;
 use image::DynamicImage;
 use image::{GenericImage, GenericImageView};
 use rusttype::{point, Font, PositionedGlyph, Scale};
@@ -32,11 +36,15 @@ pub enum BlendMode {
     Overlay,
 }
 
-pub struct Image(pub DynamicImage);
+#[derive(Debug)]
+pub struct Image {
+    pub dyn_img: DynamicImage,
+    pub url: String,
+}
 
 impl Image {
     pub fn put_text(&mut self, overlay: OverlayText) -> &mut Image {
-        let (img_width, img_height) = self.0.dimensions();
+        let (img_width, img_height) = self.dyn_img.dimensions();
         let mut stacked_height: f32 = 0.0;
         let mut padding_t: u32 = 50;
         let padding_l: u32 = 50;
@@ -57,13 +65,13 @@ impl Image {
                     let glyphs: Vec<PositionedGlyph> =
                         overlay.font.layout(&text, scale, offset).collect();
 
-                    self.0 = draw_glyphs(
+                    self.dyn_img = draw_glyphs(
                         glyphs,
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
                         overlay.blend,
-                        self.0.clone(),
+                        self.dyn_img.clone(),
                     );
 
                     // update stacked height
@@ -87,13 +95,13 @@ impl Image {
                     let glyphs: Vec<PositionedGlyph> =
                         overlay.font.layout(&text, scale, offset).collect();
 
-                    self.0 = draw_glyphs(
+                    self.dyn_img = draw_glyphs(
                         glyphs,
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
                         overlay.blend,
-                        self.0.clone(),
+                        self.dyn_img.clone(),
                     );
 
                     // update stacked height
@@ -125,13 +133,13 @@ impl Image {
                     let glyphs: Vec<PositionedGlyph> =
                         overlay.font.layout(&text, scale, offset).collect();
 
-                    self.0 = draw_glyphs(
+                    self.dyn_img = draw_glyphs(
                         glyphs,
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
                         overlay.blend,
-                        self.0.clone(),
+                        self.dyn_img.clone(),
                     );
 
                     // update stacked height
@@ -159,13 +167,13 @@ impl Image {
                     let glyphs: Vec<PositionedGlyph> =
                         overlay.font.layout(&text, scale, offset).collect();
 
-                    self.0 = draw_glyphs(
+                    self.dyn_img = draw_glyphs(
                         glyphs,
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
                         overlay.blend,
-                        self.0.clone(),
+                        self.dyn_img.clone(),
                     );
 
                     // update stacked height
@@ -192,13 +200,13 @@ impl Image {
                     let glyphs: Vec<PositionedGlyph> =
                         overlay.font.layout(&text, scale, offset).collect();
 
-                    self.0 = draw_glyphs(
+                    self.dyn_img = draw_glyphs(
                         glyphs,
                         overlay.alpha,
                         overlay.color,
                         overlay.offset,
                         overlay.blend,
-                        self.0.clone(),
+                        self.dyn_img.clone(),
                     );
 
                     // update stacked height
@@ -211,12 +219,40 @@ impl Image {
         }
     }
 
-    // creates DynamicImage from image URL
-    pub async fn from_url(url: &str) -> Result<Image, AppError> {
-        let response = reqwest::get(url).await?;
-        let bytes = response.bytes().await?;
-        let image = image::load_from_memory(&bytes)?;
-        Ok(Image(image))
+    // creates Image from image URL
+    pub async fn from_url(url: &str, state: Arc<AppState>) -> Result<Image, AppError> {
+        let mut img_bytes: Vec<u8> = Vec::new();
+        {
+            let img_map = state.images.lock().unwrap();
+            img_bytes = match img_map.get(&url.to_string()) {
+                Some(bytes) => bytes.clone(),
+                None => img_bytes,
+            }
+        }
+        if img_bytes.len() > 0 {
+            println!("loading from state");
+            let image = image::load_from_memory(&img_bytes)?;
+            Ok(Image {
+                dyn_img: image,
+                url: url.to_string(),
+            })
+        } else {
+            println!("loading from endpoint");
+            let response = reqwest::get(url).await?;
+            let bytes = response.bytes().await?;
+            {
+                let mut img_map = state.images.lock().unwrap();
+                img_map
+                    .entry(url.to_string())
+                    .or_insert(Vec::from(bytes.clone()));
+            }
+            kill_after(Duration::from_secs(30), state, url.to_string()).await;
+            let image = image::load_from_memory(&bytes)?;
+            Ok(Image {
+                dyn_img: image,
+                url: url.to_string(),
+            })
+        }
     }
 
     pub fn blend_mode(
