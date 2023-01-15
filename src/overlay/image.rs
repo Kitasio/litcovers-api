@@ -246,7 +246,7 @@ impl Image {
                     .entry(url.to_string())
                     .or_insert(Vec::from(bytes.clone()));
             }
-            kill_after(Duration::from_secs(30), state, url.to_string()).await;
+            kill_after(Duration::from_secs(120), state, url.to_string()).await;
             let image = image::load_from_memory(&bytes)?;
             Ok(Image {
                 dyn_img: image,
